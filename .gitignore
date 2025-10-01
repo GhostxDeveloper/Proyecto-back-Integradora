@@ -104,3 +104,8 @@ Thumbs.db
 # Firebase service account keys
 *-firebase-adminsdk-*.json
 service-account-*.json
+
+# Extra files you don't want tracked
+.claude/
+README.md
+.gitignore
