@@ -6,6 +6,10 @@ import { fileURLToPath } from 'url';
 import { collection, doc, getDoc, updateDoc, query, where, getDocs, addDoc } from "firebase/firestore";
 import { db } from '../config/firebase.js';
 import { UserModel } from '../models/User.js';
+import emailService from '../services/emailService.js';
+import speakeasy from 'speakeasy';
+import verificationStore from '../services/verificationStore.js';
+import crypto from 'crypto';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -15,6 +19,18 @@ dotenv.config({ path: path.join(__dirname, '../../.env') });
 
 const saltRounds = 10;
 const secretKey = process.env.JWT_SECRET || 'tu_jwt_secret_super_seguro_cambiar_en_produccion';
+
+// Funciones temporales para generar códigos
+const generateVerificationCode = () => {
+    return crypto.randomBytes(3).toString('hex').toUpperCase();
+};
+
+const generate2FASecret = () => {
+    return speakeasy.generateSecret({
+        name: 'Cook With Love',
+        length: 20
+    }).base32;
+};
 
 // Función para preparar datos del usuario
 const prepareUserData = (userDoc, userData) => ({
@@ -140,7 +156,7 @@ export class UserController {
     // HTTP Handlers
     static async register(req, res) {
         try {
-            const { email, password, firstName, lastName, phone, role } = req.body;
+            const { email, firstName, lastName, password, phone, role } = req.body;
 
             // Validaciones básicas
             if (!email || !password || !firstName || !lastName) {
@@ -159,29 +175,49 @@ export class UserController {
                 });
             }
 
-            // Hash de la contraseña
-            const hashedPassword = await bcrypt.hash(password, saltRounds);
+            // Generar código de verificación
+            const verificationCode = generateVerificationCode();
 
-            // Crear usuario
-            const newUser = await UserController.createUser({
+            // Almacenar datos temporalmente (sin crear usuario aún)
+            verificationStore.storePendingVerification(email, {
                 email,
-                password: hashedPassword,
+                password,
                 firstName,
                 lastName,
                 phone: phone || null,
                 role: role || UserModel.roles.USER,
-                isActive: true,
-                emailVerified: false
+                verificationCode,
+                secret_2fa: generate2FASecret()
             });
 
-            // No devolver password
-            const { password: _, ...userResponse } = newUser;
+            // Enviar email de verificación
+            try {
+                await emailService.sendEmailVerification(email, firstName, verificationCode);
 
-            res.status(201).json({
-                success: true,
-                message: 'Usuario registrado exitosamente',
-                data: userResponse
-            });
+                res.status(200).json({
+                    success: true,
+                    message: 'Código de verificación enviado. Por favor revisa tu correo electrónico.',
+                    data: {
+                        email,
+                        message: 'Ingresa el código que recibiste para completar el registro'
+                    }
+                });
+            } catch (emailError) {
+                console.error('Error enviando email de verificación:', emailError);
+
+                // Si no se puede enviar email, mostrar código en consola para desarrollo
+                console.log(`📧 CÓDIGO DE VERIFICACIÓN PARA ${email}: ${verificationCode}`);
+
+                res.status(200).json({
+                    success: true,
+                    message: `Error enviando email. Código de verificación: ${verificationCode}`,
+                    data: {
+                        email,
+                        verificationCode: verificationCode,
+                        message: 'Usa este código para completar el registro'
+                    }
+                });
+            }
 
         } catch (error) {
             console.error('Error en registro:', error);
@@ -367,4 +403,197 @@ export class UserController {
             });
         }
     }
+
+    // Verificar email con código y CREAR usuario
+    static async verifyEmail(req, res) {
+        try {
+            const { email, verificationCode } = req.body;
+
+            if (!email || !verificationCode) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Email y código de verificación son requeridos'
+                });
+            }
+
+            // Verificar código de verificación
+            const verification = verificationStore.verifyCode(email, verificationCode);
+            if (!verification.valid) {
+                return res.status(400).json({
+                    success: false,
+                    message: verification.error
+                });
+            }
+
+            // Obtener datos almacenados temporalmente
+            const pendingData = verification.data;
+
+            // Verificar si el email ya existe (doble verificación)
+            const existingUser = await UserController.findByEmail(email);
+            if (existingUser) {
+                verificationStore.removePendingVerification(email);
+                return res.status(409).json({
+                    success: false,
+                    message: "El email ya está registrado"
+                });
+            }
+
+            // Hash de la contraseña
+            const hashedPassword = await bcrypt.hash(pendingData.password, saltRounds);
+
+            // Crear usuario con email ya verificado
+            const newUser = await UserController.createUser({
+                email: pendingData.email,
+                password: hashedPassword,
+                firstName: pendingData.firstName,
+                lastName: pendingData.lastName,
+                phone: pendingData.phone,
+                role: pendingData.role,
+                isActive: true,
+                emailVerified: true, // Ya está verificado
+                emailVerificationCode: null,
+                emailVerificationExpires: null,
+                secret_2fa: pendingData.secret_2fa
+            });
+
+            // Eliminar datos temporales
+            verificationStore.removePendingVerification(email);
+
+            // No devolver campos sensibles
+            const { password: _, secret_2fa: __, ...userResponse } = newUser;
+
+            res.status(201).json({
+                success: true,
+                message: 'Usuario registrado exitosamente. Email verificado.',
+                data: userResponse
+            });
+
+        } catch (error) {
+            console.error('Error verificando email:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Error interno del servidor'
+            });
+        }
+    }
+
+    // Reenviar código de verificación
+    static async resendVerificationCode(req, res) {
+        try {
+            const { email } = req.body;
+
+            if (!email) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Email es requerido'
+                });
+            }
+
+            const user = await UserController.findByEmail(email);
+            if (!user) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Usuario no encontrado'
+                });
+            }
+
+            if (user.emailVerified) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'El email ya está verificado'
+                });
+            }
+
+            // Generar nuevo código
+            const verificationCode = generateVerificationCode();
+            const verificationExpires = new Date(Date.now() + 15 * 60 * 1000);
+
+            // Actualizar usuario
+            await UserController.updateUser(user.id, {
+                emailVerificationCode: verificationCode,
+                emailVerificationExpires: verificationExpires
+            });
+
+            // Enviar email
+            await emailService.sendEmailVerification(email, user.firstName, verificationCode);
+
+            res.status(200).json({
+                success: true,
+                message: 'Código de verificación reenviado'
+            });
+
+        } catch (error) {
+            console.error('Error reenviando código:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Error al reenviar código de verificación'
+            });
+        }
+    }
+
+    // Verificar OTP para autenticación de dos factores
+    static async verifyOTP(req, res) {
+        try {
+            const { email, token } = req.body;
+
+            if (!email || !token) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Email y código OTP son requeridos'
+                });
+            }
+
+            const user = await UserController.findByEmail(email);
+            if (!user) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Usuario no encontrado. Por favor verifica tu correo electrónico.'
+                });
+            }
+
+            // Verificar que el email esté verificado
+            if (!user.emailVerified) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Debes verificar tu email antes de usar la autenticación de dos factores'
+                });
+            }
+
+            // Verificar OTP
+            const verified = speakeasy.totp.verify({
+                secret: user.secret_2fa,
+                encoding: 'base32',
+                token,
+                window: 1
+            });
+
+            if (verified) {
+                const jwtToken = jwt.sign({
+                    id: user.id,
+                    email: user.email
+                }, secretKey, { expiresIn: '1h' });
+
+                res.status(200).json({
+                    success: true,
+                    message: 'Autenticación completada con éxito.',
+                    data: {
+                        token: jwtToken,
+                        user: prepareUserData({ id: user.id }, user)
+                    }
+                });
+            } else {
+                res.status(401).json({
+                    success: false,
+                    message: 'Código OTP inválido. Por favor verifica e intenta nuevamente.'
+                });
+            }
+        } catch (error) {
+            console.error('Error al verificar OTP:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Error interno del servidor. Por favor intenta más tarde.'
+            });
+        }
+    }
+
 }
