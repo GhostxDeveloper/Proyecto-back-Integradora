@@ -8,7 +8,6 @@ router.post('/register', UserController.register);
 router.post('/verify-email', UserController.verifyEmail);
 router.post('/login', UserController.login);
 router.post('/resend-verification', UserController.resendVerificationCode);
-router.post('/verify-otp', UserController.verifyOTP);
 
 // Rutas protegidas
 router.get('/profile', UserController.authenticateToken, UserController.getProfile);

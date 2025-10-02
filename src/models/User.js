@@ -12,7 +12,6 @@ export const UserModel = {
         emailVerified: false,
         emailVerificationCode: null,
         emailVerificationExpires: null,
-        secret_2fa: null,
         createdAt: null,
         updatedAt: null,
         deletedAt: null
@@ -29,10 +28,10 @@ export const UserModel = {
     requiredFields: ['email', 'password', 'firstName', 'lastName'],
 
     // Campos que se pueden actualizar
-    updatableFields: ['firstName', 'lastName', 'phone', 'emailVerified', 'emailVerificationCode', 'emailVerificationExpires', 'secret_2fa'],
+    updatableFields: ['firstName', 'lastName', 'phone', 'emailVerified', 'emailVerificationCode', 'emailVerificationExpires'],
 
     // Campos que no se deben devolver en responses
-    privateFields: ['password', 'emailVerificationCode', 'secret_2fa'],
+    privateFields: ['password', 'emailVerificationCode'],
 
     // Validaciones básicas
     validations: {

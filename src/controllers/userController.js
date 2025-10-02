@@ -7,7 +7,6 @@ import { collection, doc, getDoc, updateDoc, query, where, getDocs, addDoc } fro
 import { db } from '../config/firebase.js';
 import { UserModel } from '../models/User.js';
 import emailService from '../services/emailService.js';
-import speakeasy from 'speakeasy';
 import verificationStore from '../services/verificationStore.js';
 import crypto from 'crypto';
 
@@ -25,12 +24,6 @@ const generateVerificationCode = () => {
     return crypto.randomBytes(3).toString('hex').toUpperCase();
 };
 
-const generate2FASecret = () => {
-    return speakeasy.generateSecret({
-        name: 'Cook With Love',
-        length: 20
-    }).base32;
-};
 
 // Función para preparar datos del usuario
 const prepareUserData = (userDoc, userData) => ({
@@ -186,8 +179,7 @@ export class UserController {
                 lastName,
                 phone: phone || null,
                 role: role || UserModel.roles.USER,
-                verificationCode,
-                secret_2fa: generate2FASecret()
+                verificationCode
             });
 
             // Enviar email de verificación
@@ -452,15 +444,14 @@ export class UserController {
                 isActive: true,
                 emailVerified: true, // Ya está verificado
                 emailVerificationCode: null,
-                emailVerificationExpires: null,
-                secret_2fa: pendingData.secret_2fa
+                emailVerificationExpires: null
             });
 
             // Eliminar datos temporales
             verificationStore.removePendingVerification(email);
 
             // No devolver campos sensibles
-            const { password: _, secret_2fa: __, ...userResponse } = newUser;
+            const { password: _, ...userResponse } = newUser;
 
             res.status(201).json({
                 success: true,
@@ -531,69 +522,5 @@ export class UserController {
         }
     }
 
-    // Verificar OTP para autenticación de dos factores
-    static async verifyOTP(req, res) {
-        try {
-            const { email, token } = req.body;
-
-            if (!email || !token) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Email y código OTP son requeridos'
-                });
-            }
-
-            const user = await UserController.findByEmail(email);
-            if (!user) {
-                return res.status(404).json({
-                    success: false,
-                    message: 'Usuario no encontrado. Por favor verifica tu correo electrónico.'
-                });
-            }
-
-            // Verificar que el email esté verificado
-            if (!user.emailVerified) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Debes verificar tu email antes de usar la autenticación de dos factores'
-                });
-            }
-
-            // Verificar OTP
-            const verified = speakeasy.totp.verify({
-                secret: user.secret_2fa,
-                encoding: 'base32',
-                token,
-                window: 1
-            });
-
-            if (verified) {
-                const jwtToken = jwt.sign({
-                    id: user.id,
-                    email: user.email
-                }, secretKey, { expiresIn: '1h' });
-
-                res.status(200).json({
-                    success: true,
-                    message: 'Autenticación completada con éxito.',
-                    data: {
-                        token: jwtToken,
-                        user: prepareUserData({ id: user.id }, user)
-                    }
-                });
-            } else {
-                res.status(401).json({
-                    success: false,
-                    message: 'Código OTP inválido. Por favor verifica e intenta nuevamente.'
-                });
-            }
-        } catch (error) {
-            console.error('Error al verificar OTP:', error);
-            res.status(500).json({
-                success: false,
-                message: 'Error interno del servidor. Por favor intenta más tarde.'
-            });
-        }
-    }
 
 }
