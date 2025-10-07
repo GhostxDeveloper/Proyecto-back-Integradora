@@ -259,6 +259,9 @@ export class UserController {
                 });
             }
 
+            // Determinar nivel de usuario
+            const userLevel = user.role === 'admin' ? 'admin' : 'user';
+
             // Generar token JWT
             const token = jwt.sign({
                 id: user.id,
@@ -271,7 +274,10 @@ export class UserController {
                 message: "Login exitoso",
                 data: {
                     token,
-                    user: prepareUserData({ id: user.id }, user)
+                    user: {
+                        ...prepareUserData({ id: user.id }, user),
+                        userLevel  // 'admin' o 'user'
+                    }
                 }
             });
 
