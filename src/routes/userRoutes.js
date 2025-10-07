@@ -8,6 +8,8 @@ router.post('/register', UserController.register);
 router.post('/verify-email', UserController.verifyEmail);
 router.post('/login', UserController.login);
 router.post('/resend-verification', UserController.resendVerificationCode);
+router.post('/forgot-password', UserController.forgotPassword);
+router.post('/reset-password', UserController.resetPassword);
 
 // Rutas protegidas
 router.get('/profile', UserController.authenticateToken, UserController.getProfile);

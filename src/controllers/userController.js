@@ -523,4 +523,127 @@ export class UserController {
     }
 
 
+    // Solicitar recuperación de contraseña
+    static async forgotPassword(req, res) {
+        try {
+            const { email } = req.body;
+
+            if (!email) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Email es requerido'
+                });
+            }
+
+            const user = await UserController.findByEmail(email);
+            if (!user) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'No existe una cuenta con ese correo'
+                });
+            }
+
+            // Generar código de recuperación
+            const verificationCode = generateVerificationCode();
+            const verificationExpires = new Date(Date.now() + 15 * 60 * 1000);
+
+            // Guardar código en el usuario
+            await UserController.updateUser(user.id, {
+                passwordResetCode: verificationCode,
+                passwordResetExpires: verificationExpires
+            });
+
+            // Enviar email de recuperación
+            try {
+                await emailService.sendPasswordReset(email, user.firstName, verificationCode);
+
+                res.status(200).json({
+                    success: true,
+                    message: 'Código de recuperación enviado a tu correo'
+                });
+            } catch (emailError) {
+                console.error('Error enviando email de recuperación:', emailError);
+                console.log(`📧 CÓDIGO DE RECUPERACIÓN PARA ${email}: ${verificationCode}`);
+
+                res.status(200).json({
+                    success: true,
+                    message: `Error enviando email. Código de recuperación: ${verificationCode}`
+                });
+            }
+
+        } catch (error) {
+            console.error('Error en forgot password:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Error al procesar solicitud de recuperación'
+            });
+        }
+    }
+
+    // Restablecer contraseña con código
+    static async resetPassword(req, res) {
+        try {
+            const { email, verificationCode, newPassword } = req.body;
+
+            if (!email || !verificationCode || !newPassword) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Email, código y nueva contraseña son requeridos'
+                });
+            }
+
+            if (newPassword.length < 6) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'La contraseña debe tener al menos 6 caracteres'
+                });
+            }
+
+            const user = await UserController.findByEmail(email);
+            if (!user) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Usuario no encontrado'
+                });
+            }
+
+            // Verificar código
+            if (!user.passwordResetCode || user.passwordResetCode !== verificationCode) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Código inválido'
+                });
+            }
+
+            // Verificar expiración
+            if (!user.passwordResetExpires || new Date() > new Date(user.passwordResetExpires)) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Código expirado'
+                });
+            }
+
+            // Hash nueva contraseña
+            const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
+
+            // Actualizar contraseña y limpiar códigos
+            await UserController.updateUser(user.id, {
+                password: hashedPassword,
+                passwordResetCode: null,
+                passwordResetExpires: null
+            });
+
+            res.status(200).json({
+                success: true,
+                message: 'Contraseña actualizada exitosamente'
+            });
+
+        } catch (error) {
+            console.error('Error en reset password:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Error al restablecer contraseña'
+            });
+        }
+    }
 }
