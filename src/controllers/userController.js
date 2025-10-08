@@ -111,6 +111,161 @@ export class UserController {
         }
     }
 
+    // -----------------------
+    // Nuevos métodos CRUD
+    // -----------------------
+
+    // Obtener lista de usuarios (opcionalmente filtrados por role e isActive)
+    static async listUsers({ role = undefined, isActive = undefined } = {}) {
+        try {
+            const usersCol = collection(db, 'users');
+            let docsSnapshot;
+
+            // Construir query dinámica si hay filtros
+            const constraints = [];
+            if (role !== undefined) constraints.push(where('role', '==', role));
+            if (isActive !== undefined) {
+                // isActive puede venir como 'true'|'false' desde query params
+                const boolVal = (isActive === true) || (String(isActive).toLowerCase() === 'true');
+                constraints.push(where('isActive', '==', boolVal));
+            }
+
+            if (constraints.length) {
+                const q = query(usersCol, ...constraints);
+                docsSnapshot = await getDocs(q);
+            } else {
+                docsSnapshot = await getDocs(usersCol);
+            }
+
+            const users = docsSnapshot.docs.map(d => prepareUserData(d, d.data()));
+            return users;
+        } catch (error) {
+            throw new Error(`Error listing users: ${error.message}`);
+        }
+    }
+
+    // Handler HTTP: GET /users?role=admin&isActive=true
+    static async getAllUsers(req, res) {
+        try {
+            const { role, isActive } = req.query;
+            const users = await UserController.listUsers({ role, isActive });
+            res.status(200).json({ success: true, data: users });
+        } catch (error) {
+            console.error('Error obteniendo usuarios:', error);
+            res.status(500).json({ success: false, message: 'Error al obtener usuarios' });
+        }
+    }
+
+    // Handler HTTP: GET /users/:id
+    static async getUserByIdHandler(req, res) {
+        try {
+            const { id } = req.params;
+            const user = await UserController.findById(id);
+            if (!user) {
+                return res.status(404).json({ success: false, message: 'Usuario no encontrado' });
+            }
+            const { password, ...userResponse } = user;
+            res.status(200).json({ success: true, data: userResponse });
+        } catch (error) {
+            console.error('Error obteniendo usuario:', error);
+            res.status(500).json({ success: false, message: 'Error al obtener usuario' });
+        }
+    }
+
+    // Handler HTTP: POST /users  (creación por admin)
+    static async createUserHandler(req, res) {
+        try {
+            const { email, password, firstName, lastName, phone = null, role = UserModel.roles.USER, isActive = true, emailVerified = false } = req.body;
+
+            // Validaciones básicas
+            if (!email || !password || !firstName || !lastName) {
+                return res.status(400).json({ success: false, message: 'Email, contraseña, nombre y apellido son requeridos' });
+            }
+
+            // Verificar si el email ya existe
+            const existingUser = await UserController.findByEmail(email);
+            if (existingUser) {
+                return res.status(409).json({ success: false, message: 'El email ya está registrado' });
+            }
+
+            // Hashear contraseña
+            const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+            // Crear usuario (createUser ya agrega createdAt/updatedAt)
+            const newUser = await UserController.createUser({
+                email,
+                password: hashedPassword,
+                firstName,
+                lastName,
+                phone,
+                role,
+                isActive,
+                emailVerified,
+                emailVerificationCode: null,
+                emailVerificationExpires: null
+            });
+
+            // No devolver contraseña
+            const { password: _, ...userResponse } = newUser;
+
+            res.status(201).json({ success: true, message: 'Usuario creado exitosamente', data: userResponse });
+        } catch (error) {
+            console.error('Error creando usuario:', error);
+            res.status(500).json({ success: false, message: 'Error al crear usuario' });
+        }
+    }
+
+    // Handler HTTP: PUT /users/:id  (actualiza campos permitidos)
+    static async updateUserHandler(req, res) {
+        try {
+            const { id } = req.params;
+            const { firstName, lastName, phone, role, isActive } = req.body;
+
+            // Verificar existencia
+            const user = await UserController.findById(id);
+            if (!user) {
+                return res.status(404).json({ success: false, message: 'Usuario no encontrado' });
+            }
+
+            // Campos permitidos
+            const updateData = {};
+            if (firstName !== undefined) updateData.firstName = firstName;
+            if (lastName !== undefined) updateData.lastName = lastName;
+            if (phone !== undefined) updateData.phone = phone;
+            if (role !== undefined) updateData.role = role;
+            if (isActive !== undefined) updateData.isActive = isActive;
+
+            await UserController.updateUser(id, updateData);
+
+            res.status(200).json({ success: true, message: 'Usuario actualizado exitosamente' });
+        } catch (error) {
+            console.error('Error actualizando usuario:', error);
+            res.status(500).json({ success: false, message: 'Error al actualizar usuario' });
+        }
+    }
+
+    // Handler HTTP: DELETE /users/:id  (desactiva en lugar de borrar)
+    static async deleteUserHandler(req, res) {
+        try {
+            const { id } = req.params;
+
+            const user = await UserController.findById(id);
+            if (!user) {
+                return res.status(404).json({ success: false, message: 'Usuario no encontrado' });
+            }
+
+            await UserController.updateUser(id, {
+                isActive: false,
+                deletedAt: new Date()
+            });
+
+            res.status(200).json({ success: true, message: 'Usuario desactivado exitosamente' });
+        } catch (error) {
+            console.error('Error desactivando usuario:', error);
+            res.status(500).json({ success: false, message: 'Error al eliminar usuario' });
+        }
+    }
+
     // Middleware de autenticación
     static async authenticateToken(req, res, next) {
         try {
