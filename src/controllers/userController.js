@@ -807,4 +807,108 @@ export class UserController {
             });
         }
     }
+
+    // Middleware para autorizar solo admins
+    static async authorizeAdmin(req, res, next) {
+        try {
+            const user = req.user;
+            if (!user || user.role !== 'admin') {
+                return res.status(403).json({ success: false, message: 'Acceso denegado: se requiere rol admin' });
+            }
+            next();
+        } catch (error) {
+            console.error('Error en authorizeAdmin:', error);
+            return res.status(500).json({ success: false, message: 'Error interno del servidor' });
+        }
+    }
+
+    // ADMIN: Listar usuarios (con paginación opcional)
+    static async listUsers(req, res) {
+        try {
+            const usersQuery = query(collection(db, 'users'));
+            const snapshot = await getDocs(usersQuery);
+            const users = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).map(u => {
+                const { password, ...rest } = u;
+                return rest;
+            });
+
+            res.json({ success: true, data: users });
+        } catch (error) {
+            console.error('Error listUsers:', error);
+            res.status(500).json({ success: false, message: 'Error obteniendo usuarios' });
+        }
+    }
+
+    static async getUserById(req, res) {
+        try {
+            const { id } = req.params;
+            const user = await UserController.findById(id);
+            if (!user) return res.status(404).json({ success: false, message: 'Usuario no encontrado' });
+            const { password, ...rest } = user;
+            res.json({ success: true, data: rest });
+        } catch (error) {
+            console.error('Error getUserById:', error);
+            res.status(500).json({ success: false, message: 'Error obteniendo usuario' });
+        }
+    }
+
+    static async adminCreateUser(req, res) {
+        try {
+            const { email, firstName, lastName, password, phone, role, isActive } = req.body;
+            if (!email || !firstName || !lastName || !password) {
+                return res.status(400).json({ success: false, message: 'Campos requeridos faltantes' });
+            }
+
+            const existingUser = await UserController.findByEmail(email);
+            if (existingUser) return res.status(409).json({ success: false, message: 'El email ya está registrado' });
+
+            const hashedPassword = await bcrypt.hash(password, saltRounds);
+            const newUser = await UserController.createUser({
+                email,
+                password: hashedPassword,
+                firstName,
+                lastName,
+                phone: phone || null,
+                role: role || 'user',
+                isActive: isActive !== undefined ? isActive : true,
+                emailVerified: false
+            });
+
+            const { password: _, ...userResponse } = newUser;
+            res.status(201).json({ success: true, data: userResponse });
+        } catch (error) {
+            console.error('Error adminCreateUser:', error);
+            res.status(500).json({ success: false, message: 'Error creando usuario' });
+        }
+    }
+
+    static async adminUpdateUser(req, res) {
+        try {
+            const { id } = req.params;
+            const updateData = req.body || {};
+
+            // Si actualizan password, hashearla
+            if (updateData.password) {
+                updateData.password = await bcrypt.hash(updateData.password, saltRounds);
+            }
+
+            await UserController.updateUser(id, updateData);
+            res.json({ success: true, message: 'Usuario actualizado' });
+        } catch (error) {
+            console.error('Error adminUpdateUser:', error);
+            res.status(500).json({ success: false, message: 'Error actualizando usuario' });
+        }
+    }
+
+    static async adminDeleteUser(req, res) {
+        try {
+            const { id } = req.params;
+            // Marcar como inactivo en lugar de eliminar
+            await UserController.updateUser(id, { isActive: false, deletedAt: new Date() });
+            res.json({ success: true, message: 'Usuario desactivado' });
+        } catch (error) {
+            console.error('Error adminDeleteUser:', error);
+            res.status(500).json({ success: false, message: 'Error eliminando usuario' });
+        }
+    }
 }

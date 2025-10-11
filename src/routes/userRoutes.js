@@ -17,4 +17,11 @@ router.put('/profile', UserController.authenticateToken, UserController.updatePr
 router.put('/change-password', UserController.authenticateToken, UserController.changePassword);
 router.delete('/account', UserController.authenticateToken, UserController.deleteAccount);
 
+// Rutas de administración (requieren token + role=admin)
+router.get('/admin', UserController.authenticateToken, UserController.authorizeAdmin, UserController.listUsers);
+router.get('/admin/:id', UserController.authenticateToken, UserController.authorizeAdmin, UserController.getUserById);
+router.post('/admin', UserController.authenticateToken, UserController.authorizeAdmin, UserController.adminCreateUser);
+router.put('/admin/:id', UserController.authenticateToken, UserController.authorizeAdmin, UserController.adminUpdateUser);
+router.delete('/admin/:id', UserController.authenticateToken, UserController.authorizeAdmin, UserController.adminDeleteUser);
+
 export default router;
