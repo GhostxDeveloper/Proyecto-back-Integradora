@@ -1,41 +1,36 @@
-import nodemailer from 'nodemailer';
+// services/emailService.js
+import sgMail from '@sendgrid/mail';
 import crypto from 'crypto';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
+// Configurar SendGrid
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+
 class EmailService {
     constructor() {
-        this.transporter = nodemailer.createTransport({
-            host: 'smtp.gmail.com',
-            port: 587,
-            secure: false,
-            auth: {
-                user: process.env.EMAIL_USER,
-                pass: process.env.EMAIL_PASS
-            },
-            tls: {
-                rejectUnauthorized: false
-            }
-        });
+        // Ya no necesitas el transporter de nodemailer
     }
 
-    // Generar código de verificación
+    // Generar código de verificación (MANTIENE IGUAL)
     generateVerificationCode() {
         return crypto.randomBytes(3).toString('hex').toUpperCase(); // Código de 6 caracteres
     }
 
-
-    // Enviar email de verificación de registro
+    // Enviar email de verificación de registro (ACTUALIZADO)
     async sendEmailVerification(email, firstName, verificationCode) {
         try {
-            const mailOptions = {
-                from: `"Cook With Love" <${process.env.EMAIL_USER}>`,
+            const msg = {
                 to: email,
-                subject: 'Verifica tu cuenta - Cook With Love',
+                from: {
+                    email: 'cssecurition@gmail.com', // Tu email verificado en SendGrid
+                    name: 'Experience Arrays' // Tu nombre de remitente
+                },
+                subject: 'Verifica tu cuenta - Experience Arrays',
                 html: `
                     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                        <h2 style="color: #333; text-align: center;">¡Bienvenido a Cook With Love!</h2>
+                        <h2 style="color: #333; text-align: center;">¡Bienvenido a Experience Arrays!</h2>
                         <p>Hola ${firstName},</p>
                         <p>Gracias por registrarte en nuestra plataforma. Para completar tu registro, por favor verifica tu correo electrónico usando el siguiente código:</p>
 
@@ -56,22 +51,28 @@ class EmailService {
                 `
             };
 
-            const result = await this.transporter.sendMail(mailOptions);
-            return { success: true, messageId: result.messageId };
+            // ENVÍO CON SENDGRID
+            const result = await sgMail.send(msg);
+            return { 
+                success: true, 
+                messageId: result[0].headers['x-message-id'] 
+            };
         } catch (error) {
             console.error('Error enviando email de verificación:', error);
             throw new Error('Error al enviar el correo de verificación');
         }
     }
 
-
-    // Enviar email de recuperación de contraseña
+    // Enviar email de recuperación de contraseña (ACTUALIZADO)
     async sendPasswordReset(email, firstName, verificationCode) {
         try {
-            const mailOptions = {
-                from: `"Experiencias Arroyo" <${process.env.EMAIL_USER}>`,
+            const msg = {
                 to: email,
-                subject: "Recuperación de Contraseña - Experiencias Arroyo",
+                from: {
+                    email: 'team.codecraftdev@gmail.com', // Tu email verificado
+                    name: 'Experiencia_Arroyo'
+                },
+                subject: 'Recuperación de Contraseña - Experience Arrays',
                 html: `
                     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                         <h2 style="color: #16a085; text-align: center;">Recuperación de Contraseña</h2>
@@ -90,14 +91,18 @@ class EmailService {
                         <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
                         <p style="color: #666; font-size: 12px; text-align: center;">
                             Este es un correo automático, por favor no respondas a este mensaje.<br>
-                            Experiencias Arroyo - Sierra Gorra Gorda, Querétaro
+                            Experience Arrays
                         </p>
                     </div>
                 `
             };
 
-            const result = await this.transporter.sendMail(mailOptions);
-            return { success: true, messageId: result.messageId };
+            // ENVÍO CON SENDGRID
+            const result = await sgMail.send(msg);
+            return { 
+                success: true, 
+                messageId: result[0].headers['x-message-id'] 
+            };
         } catch (error) {
             console.error("Error enviando email de recuperación:", error);
             throw new Error("Error al enviar el correo de recuperación");
