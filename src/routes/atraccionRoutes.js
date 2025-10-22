@@ -8,7 +8,7 @@ import {
     cambiarEstadoAtraccion,
     buscarAtracciones,
     obtenerEstadisticas
-} from '../controllers/AtraccionCtl.js';
+} from '../controllers/atraccionCtl.js';
 
 const router = express.Router();
 
