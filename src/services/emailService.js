@@ -1,5 +1,8 @@
 import nodemailer from 'nodemailer';
 import crypto from 'crypto';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 class EmailService {
     constructor() {
@@ -8,8 +11,8 @@ class EmailService {
             port: 587,
             secure: false,
             auth: {
-                user: 'crissalvador175@gmail.com',
-                pass: 'wboyomloeymsrvor'
+                user: process.env.EMAIL_USER,
+                pass: process.env.EMAIL_PASS
             },
             tls: {
                 rejectUnauthorized: false
@@ -27,7 +30,7 @@ class EmailService {
     async sendEmailVerification(email, firstName, verificationCode) {
         try {
             const mailOptions = {
-                from: '"Cook With Love" <crissalvador175@gmail.com>',
+                from: `"Cook With Love" <${process.env.EMAIL_USER}>`,
                 to: email,
                 subject: 'Verifica tu cuenta - Cook With Love',
                 html: `
@@ -66,7 +69,7 @@ class EmailService {
     async sendPasswordReset(email, firstName, verificationCode) {
         try {
             const mailOptions = {
-                from: "\"Experiencias Arroyo\" <crissalvador175@gmail.com>",
+                from: `"Experiencias Arroyo" <${process.env.EMAIL_USER}>`,
                 to: email,
                 subject: "Recuperación de Contraseña - Experiencias Arroyo",
                 html: `
