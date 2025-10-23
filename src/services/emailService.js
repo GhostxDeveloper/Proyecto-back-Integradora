@@ -24,7 +24,7 @@ class EmailService {
             const msg = {
                 to: email,
                 from: {
-                    email: 'cssecurition@gmail.com', // Tu email verificado en SendGrid
+                    email: process.env.SENDGRID_VERIFIED_EMAIL, // Tu email verificado en SendGrid
                     name: 'Experience Arrays' // Tu nombre de remitente
                 },
                 subject: 'Verifica tu cuenta - Experience Arrays',
@@ -69,8 +69,8 @@ class EmailService {
             const msg = {
                 to: email,
                 from: {
-                    email: 'team.codecraftdev@gmail.com', // Tu email verificado
-                    name: 'Experiencia_Arroyo'
+                    email: process.env.SENDGRID_VERIFIED_EMAIL, // MISMO EMAIL VERIFICADO
+                    name: 'Experience Arrays'
                 },
                 subject: 'Recuperación de Contraseña - Experience Arrays',
                 html: `
