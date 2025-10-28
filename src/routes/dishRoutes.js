@@ -9,19 +9,16 @@ router.use(UserController.authenticateToken);
 
 // Obtener todos los platillos
 router.get('/',
-    UserController.authorizeAdmin,
     DishController.getAllDishes
 );
 
 // Obtener platillos por restaurante
 router.get('/restaurant/:restaurantId',
-    UserController.authorizeAdmin,
     DishController.getDishesByRestaurant
 );
 
 // Obtener un platillo por ID
 router.get('/:id',
-    UserController.authorizeAdmin,
     DishController.getDishById
 );
 

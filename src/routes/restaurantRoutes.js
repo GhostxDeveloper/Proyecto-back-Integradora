@@ -8,14 +8,12 @@ const router = express.Router();
 router.get(
     '/',
     UserController.authenticateToken,
-    UserController.authorizeAdmin,
     RestaurantController.getAllRestaurants
 );
 
 router.get(
     '/:id',
     UserController.authenticateToken,
-    UserController.authorizeAdmin,
     RestaurantController.getRestaurantById
 );
 
