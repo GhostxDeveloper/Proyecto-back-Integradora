@@ -1,26 +1,26 @@
-// Inicialización explícita de Firebase Admin
-import admin from 'firebase-admin';
+import { initializeApp, getApps } from 'firebase/app';
+import {
+  getFirestore,
+  collection,
+  getDocs,
+  addDoc,
+  doc,
+  getDoc,
+  setDoc,
+  deleteDoc,
+} from 'firebase/firestore';
 
-if (!admin.apps.length) {
-  let credential;
-  try {
-    if (process.env.FIREBASE_SERVICE_ACCOUNT_BASE64) {
-      const serviceAccount = JSON.parse(
-        Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_BASE64, 'base64').toString('utf8')
-      );
-      credential = admin.credential.cert(serviceAccount);
-    } else {
-      // Usa Application Default Credentials (requiere GOOGLE_APPLICATION_CREDENTIALS apuntando al JSON)
-      credential = admin.credential.applicationDefault();
-    }
-
-    admin.initializeApp({
-      credential,
-      projectId: process.env.FIREBASE_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT,
+// Inicializa Firebase con variables del .env (FIREBASE_*)
+function getDb() {
+  if (!getApps().length) {
+    initializeApp({
+      apiKey: process.env.FIREBASE_API_KEY,
+      authDomain: process.env.FIREBASE_AUTH_DOMAIN,
+      projectId: process.env.FIREBASE_PROJECT_ID,
+      // appId/messagingSenderId/bucket no son estrictamente necesarios para Firestore
     });
-  } catch (e) {
-    console.error('Error inicializando Firebase Admin:', e);
   }
+  return getFirestore();
 }
 
 // Crear evento
@@ -30,9 +30,26 @@ export const crearEvento = async (req, res, next) => {
     if (!nombre || !fecha) {
       return res.status(400).json({ message: 'nombre y fecha son obligatorios' });
     }
-    const Evento = await import('../models/eventoModel.js');
-    const nuevo = await Evento.createEvento(req.body);
-    res.status(201).json(nuevo);
+    const db = getDb();
+    const now = new Date().toISOString();
+    const evento = {
+      nombre: req.body.nombre,
+      descripcion: req.body.descripcion || '',
+      fecha: req.body.fecha,
+      hora: req.body.hora || '',
+      ubicacion: req.body.ubicacion || '',
+      categoria: req.body.categoria || '',
+      precio: req.body.precio ?? 0,
+      imagen: req.body.imagen || '',
+      fotos: Array.isArray(req.body.fotos) ? req.body.fotos : [],
+      estado: req.body.estado || 'activo',
+      asistentes: req.body.asistentes ?? 0,
+      destacado: !!req.body.destacado,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const ref = await addDoc(collection(db, 'eventos'), evento);
+    res.status(201).json({ id: ref.id, ...evento });
   } catch (err) {
     next(err);
   }
@@ -41,8 +58,9 @@ export const crearEvento = async (req, res, next) => {
 // Listar eventos
 export const obtenerEventos = async (_req, res, next) => {
   try {
-    const Evento = await import('../models/eventoModel.js');
-    const lista = await Evento.getEventos();
+    const db = getDb();
+    const snap = await getDocs(collection(db, 'eventos'));
+    const lista = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
     res.json(lista);
   } catch (err) {
     next(err);
@@ -52,10 +70,10 @@ export const obtenerEventos = async (_req, res, next) => {
 // Obtener por id
 export const obtenerEventoPorId = async (req, res, next) => {
   try {
-    const Evento = await import('../models/eventoModel.js');
-    const ev = await Evento.getEventoById(req.params.id);
-    if (!ev) return res.status(404).json({ message: 'Evento no encontrado' });
-    res.json(ev);
+    const db = getDb();
+    const d = await getDoc(doc(db, 'eventos', req.params.id));
+    if (!d.exists()) return res.status(404).json({ message: 'Evento no encontrado' });
+    res.json({ id: d.id, ...d.data() });
   } catch (err) {
     next(err);
   }
@@ -64,11 +82,14 @@ export const obtenerEventoPorId = async (req, res, next) => {
 // Actualizar (merge)
 export const actualizarEvento = async (req, res, next) => {
   try {
-    const Evento = await import('../models/eventoModel.js');
-    const existe = await Evento.getEventoById(req.params.id);
-    if (!existe) return res.status(404).json({ message: 'Evento no encontrado' });
-    const actualizado = await Evento.updateEvento(req.params.id, req.body);
-    res.json(actualizado);
+    const db = getDb();
+    const ref = doc(db, 'eventos', req.params.id);
+    const prev = await getDoc(ref);
+    if (!prev.exists()) return res.status(404).json({ message: 'Evento no encontrado' });
+    const patch = { ...req.body, updatedAt: new Date().toISOString() };
+    await setDoc(ref, patch, { merge: true });
+    const updated = await getDoc(ref);
+    res.json({ id: updated.id, ...updated.data() });
   } catch (err) {
     next(err);
   }
@@ -77,10 +98,11 @@ export const actualizarEvento = async (req, res, next) => {
 // Eliminar
 export const eliminarEvento = async (req, res, next) => {
   try {
-    const Evento = await import('../models/eventoModel.js');
-    const existe = await Evento.getEventoById(req.params.id);
-    if (!existe) return res.status(404).json({ message: 'Evento no encontrado' });
-    await Evento.deleteEvento(req.params.id);
+    const db = getDb();
+    const ref = doc(db, 'eventos', req.params.id);
+    const prev = await getDoc(ref);
+    if (!prev.exists()) return res.status(404).json({ message: 'Evento no encontrado' });
+    await deleteDoc(ref);
     res.json({ message: 'Evento eliminado' });
   } catch (err) {
     next(err);
@@ -92,11 +114,13 @@ export const cambiarEstadoEvento = async (req, res, next) => {
   try {
     const { estado } = req.body;
     if (!estado) return res.status(400).json({ message: 'estado es obligatorio' });
-    const Evento = await import('../models/eventoModel.js');
-    const existe = await Evento.getEventoById(req.params.id);
-    if (!existe) return res.status(404).json({ message: 'Evento no encontrado' });
-    const actualizado = await Evento.changeEstado(req.params.id, estado);
-    res.json(actualizado);
+    const db = getDb();
+    const ref = doc(db, 'eventos', req.params.id);
+    const prev = await getDoc(ref);
+    if (!prev.exists()) return res.status(404).json({ message: 'Evento no encontrado' });
+    await setDoc(ref, { estado, updatedAt: new Date().toISOString() }, { merge: true });
+    const updated = await getDoc(ref);
+    res.json({ id: updated.id, ...updated.data() });
   } catch (err) {
     next(err);
   }

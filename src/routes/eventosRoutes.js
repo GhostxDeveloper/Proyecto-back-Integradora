@@ -10,6 +10,15 @@ import {
 
 const router = Router();
 
+// Debug de token (solo dev)
+router.use((req, _res, next) => {
+  if (process.env.NODE_ENV === 'development') {
+    const auth = req.get('authorization') || req.get('Authorization') || '';
+    if (auth) console.log('[eventos] Authorization:', auth.slice(0, 25) + '...');
+  }
+  next();
+});
+
 // /api/eventos
 router.get('/', obtenerEventos);
 router.post('/', crearEvento);
