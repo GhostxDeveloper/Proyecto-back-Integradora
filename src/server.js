@@ -9,6 +9,7 @@ import dishRoutes from './routes/dishRoutes.js';
 import atraccionRoutes from './routes/atraccionRoutes.js';
 import eventosRoutes from './routes/eventosRoutes.js';
 import servicioRoutes from './routes/servicioRoutes.js';
+import favoritoRoutes from './routes/favoritoRoutes.js';
 
 const server = express();
 
@@ -22,6 +23,8 @@ server.use('/api/users', userRoutes);
 server.use('/api/restaurants', restaurantRoutes);
 server.use('/api/dishes', dishRoutes);
 server.use('/api/atracciones', atraccionRoutes);
-server.use('/api/eventos', eventosRoutes);server.use('/api/servicios', servicioRoutes);
+server.use('/api/eventos', eventosRoutes);
+server.use('/api/servicios', servicioRoutes);
+server.use('/api/favoritos', favoritoRoutes);
 
 export default server;
