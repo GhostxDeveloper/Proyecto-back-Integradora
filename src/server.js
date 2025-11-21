@@ -10,6 +10,7 @@ import atraccionRoutes from './routes/atraccionRoutes.js';
 import eventosRoutes from './routes/eventosRoutes.js';
 import servicioRoutes from './routes/servicioRoutes.js';
 import favoritoRoutes from './routes/favoritoRoutes.js';
+import reservacionRoutes from './routes/reservacionRoutes.js';
 
 const server = express();
 
@@ -26,5 +27,6 @@ server.use('/api/atracciones', atraccionRoutes);
 server.use('/api/eventos', eventosRoutes);
 server.use('/api/servicios', servicioRoutes);
 server.use('/api/favoritos', favoritoRoutes);
+server.use('/api/reservaciones', reservacionRoutes);
 
 export default server;
