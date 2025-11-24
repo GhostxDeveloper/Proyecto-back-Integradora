@@ -1,6 +1,5 @@
 import Reservacion from '../models/Reservacion.js';
-
-// Crear reservación
+import { UserController } from './userController.js';
 export const crearReservacion = async (req, res) => {
     try {
         // El usuario viene del token (req.user) gracias al middleware que pondremos en la ruta
@@ -43,12 +42,37 @@ export const obtenerMisReservaciones = async (req, res) => {
     }
 };
 
-// Obtener TODAS (Solo Admins)
+// Obtener TODAS (Solo Admins) - VERSIÓN ROBUSTA
 export const obtenerTodasReservaciones = async (req, res) => {
     try {
         const reservaciones = await Reservacion.getAll();
-        res.status(200).json({ success: true, data: reservaciones });
+
+        // Enriquecer con nombre de usuario (con manejo de errores individual)
+        const reservacionesConNombre = await Promise.all(reservaciones.map(async (reserva) => {
+            let nombreCliente = 'Desconocido';
+            
+            // Solo buscamos si hay un ID válido
+            if (reserva.usuarioId) {
+                try {
+                    const usuario = await UserController.findById(reserva.usuarioId);
+                    if (usuario) {
+                        nombreCliente = `${usuario.firstName} ${usuario.lastName}`;
+                    }
+                } catch (err) {
+                    console.warn(`No se pudo encontrar usuario para reserva ${reserva.id}:`, err.message);
+                    // No hacemos nada, nombreCliente se queda como 'Desconocido'
+                }
+            }
+
+            return {
+                ...reserva,
+                nombreCliente
+            };
+        }));
+
+        res.status(200).json({ success: true, data: reservacionesConNombre });
     } catch (error) {
+        console.error('Error obteniendo todas las reservaciones:', error); // Log para ver qué pasó
         res.status(500).json({ success: false, message: error.message });
     }
 };
