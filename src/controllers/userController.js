@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { collection, doc, getDoc, updateDoc, query, where, getDocs, addDoc } from "firebase/firestore";
+import { collection, doc, getDoc, updateDoc, deleteDoc, query, where, getDocs, addDoc } from "firebase/firestore";
 import { db } from '../config/firebase.js';
 import { UserModel } from '../models/User.js';
 import emailService from '../services/emailService.js';
@@ -903,12 +903,43 @@ export class UserController {
     static async adminDeleteUser(req, res) {
         try {
             const { id } = req.params;
-            // Marcar como inactivo en lugar de eliminar
-            await UserController.updateUser(id, { isActive: false, deletedAt: new Date() });
-            res.json({ success: true, message: 'Usuario desactivado' });
+            // Eliminar permanentemente de Firestore
+            const userRef = doc(db, 'users', id);
+            await deleteDoc(userRef);
+            res.json({ success: true, message: 'Usuario eliminado permanentemente' });
         } catch (error) {
             console.error('Error adminDeleteUser:', error);
             res.status(500).json({ success: false, message: 'Error eliminando usuario' });
+        }
+    }
+
+    static async verifyPassword(req, res) {
+        try {
+            const { password } = req.body;
+            const userId = req.user.id;
+
+            if (!password) {
+                return res.status(400).json({ success: false, message: 'Contraseña requerida' });
+            }
+
+            // Obtener usuario de la base de datos
+            const user = await UserController.findById(userId);
+
+            if (!user) {
+                return res.status(404).json({ success: false, message: 'Usuario no encontrado' });
+            }
+
+            // Comparar contraseña
+            const isPasswordValid = await bcrypt.compare(password, user.password);
+
+            if (!isPasswordValid) {
+                return res.status(401).json({ success: false, message: 'Contraseña incorrecta' });
+            }
+
+            res.json({ success: true, message: 'Contraseña correcta' });
+        } catch (error) {
+            console.error('Error verifyPassword:', error);
+            res.status(500).json({ success: false, message: 'Error verificando contraseña' });
         }
     }
 }

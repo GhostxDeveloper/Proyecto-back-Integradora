@@ -16,6 +16,7 @@ router.get('/profile', UserController.authenticateToken, UserController.getProfi
 router.put('/profile', UserController.authenticateToken, UserController.updateProfile);
 router.put('/change-password', UserController.authenticateToken, UserController.changePassword);
 router.delete('/account', UserController.authenticateToken, UserController.deleteAccount);
+router.post('/verify-password', UserController.authenticateToken, UserController.verifyPassword);
 
 // Rutas de administración (requieren token + role=admin)
 router.get('/admin', UserController.authenticateToken, UserController.authorizeAdmin, UserController.listUsers);

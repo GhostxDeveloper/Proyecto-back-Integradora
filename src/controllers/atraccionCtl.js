@@ -6,7 +6,7 @@ export const crearAtraccion = async (req, res) => {
         const atraccionData = req.body;
 
         // Validar campos requeridos
-        const camposRequeridos = ['nombre', 'categoria', 'descripcion', 'latitud', 'longitud'];
+        const camposRequeridos = ['nombre', 'descripcion', 'latitud', 'longitud'];
         const camposFaltantes = camposRequeridos.filter(campo => !atraccionData[campo]);
 
         if (camposFaltantes.length > 0) {
