@@ -11,6 +11,7 @@ class Atraccion {
         this.informacionCultural = data.informacionCultural;
         this.horarios = data.horarios;
         this.costoEntrada = data.costoEntrada;
+        this.cantidadBoletos = data.cantidadBoletos || 0;
         this.restricciones = data.restricciones;
         this.nivelDificultad = data.nivelDificultad;
         this.servicios = data.servicios;

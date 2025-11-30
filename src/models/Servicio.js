@@ -14,6 +14,7 @@ class Servicio {
         this.horarios = data.horarios || 'No especificado';
         this.sitioWeb = data.sitioWeb || '';
         this.rangoPrecios = data.rangoPrecios || '$ (Económico)'; // '$', '$$', '$$$'
+        this.cantidadBoletos = data.cantidadBoletos || 0;
         this.serviciosIncluidos = data.serviciosIncluidos || []; // ["WiFi", "Alberca"]
         this.estado = data.estado || 'activo'; // 'activo' o 'inactivo'
         this.fechaCreacion = data.fechaCreacion || new Date().toISOString();

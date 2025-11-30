@@ -12,6 +12,7 @@ export const createEvento = async (data) => {
     ubicacion: data.ubicacion || '',
     categoria: data.categoria || '',
     precio: data.precio ?? 0,
+    cantidadBoletos: data.cantidadBoletos || 0,
     imagen: data.imagen || '',
     fotos: Array.isArray(data.fotos) ? data.fotos : [],
     estado: data.estado || 'activo',
@@ -37,9 +38,24 @@ export const getEventoById = async (id) => {
 
 export const updateEvento = async (id, data) => {
   const patch = {
-    ...data,
     updatedAt: new Date().toISOString(),
   };
+  
+  // Solo agregar campos que vengan definidos
+  if (data.nombre !== undefined) patch.nombre = data.nombre;
+  if (data.descripcion !== undefined) patch.descripcion = data.descripcion;
+  if (data.fecha !== undefined) patch.fecha = data.fecha;
+  if (data.hora !== undefined) patch.hora = data.hora;
+  if (data.ubicacion !== undefined) patch.ubicacion = data.ubicacion;
+  if (data.categoria !== undefined) patch.categoria = data.categoria;
+  if (data.precio !== undefined) patch.precio = data.precio ?? 0;
+  if (data.cantidadBoletos !== undefined) patch.cantidadBoletos = data.cantidadBoletos ?? 0;
+  if (data.imagen !== undefined) patch.imagen = data.imagen;
+  if (data.fotos !== undefined) patch.fotos = Array.isArray(data.fotos) ? data.fotos : [];
+  if (data.estado !== undefined) patch.estado = data.estado;
+  if (data.asistentes !== undefined) patch.asistentes = data.asistentes ?? 0;
+  if (data.destacado !== undefined) patch.destacado = !!data.destacado;
+  
   await db.collection(COLLECTION).doc(id).set(patch, { merge: true });
   return getEventoById(id);
 };

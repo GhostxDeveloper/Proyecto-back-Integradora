@@ -4,10 +4,25 @@ export const crearReservacion = async (req, res) => {
     try {
         // El usuario viene del token (req.user) gracias al middleware que pondremos en la ruta
         const usuarioId = req.user.id; 
-        const { servicioId, nombreServicio, fechaReserva, horaReserva, numeroPersonas, comentarios } = req.body;
+        const { 
+            servicioId, 
+            nombreServicio, 
+            fechaReserva, 
+            horaReserva, 
+            cantidadBoletos, 
+            numeroPersonas, // Retrocompatibilidad
+            tipoServicio,
+            comentarios 
+        } = req.body;
 
         if (!servicioId || !fechaReserva || !horaReserva) {
             return res.status(400).json({ success: false, message: 'Faltan datos requeridos' });
+        }
+
+        // Validar cantidad de boletos
+        const cantidad = cantidadBoletos || numeroPersonas || 1;
+        if (cantidad < 1) {
+            return res.status(400).json({ success: false, message: 'La cantidad de boletos debe ser mayor a 0' });
         }
 
         const nuevaReservacion = await Reservacion.create({
@@ -16,7 +31,8 @@ export const crearReservacion = async (req, res) => {
             nombreServicio,
             fechaReserva,
             horaReserva,
-            numeroPersonas,
+            cantidadBoletos: cantidad,
+            tipoServicio: tipoServicio || 'servicio',
             comentarios
         });
 
@@ -26,7 +42,9 @@ export const crearReservacion = async (req, res) => {
             data: nuevaReservacion
         });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        // Distinguir entre error de validación y error del servidor
+        const statusCode = error.message.includes('No hay suficientes boletos') ? 400 : 500;
+        res.status(statusCode).json({ success: false, message: error.message });
     }
 };
 
