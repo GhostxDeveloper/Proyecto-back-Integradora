@@ -17,6 +17,9 @@ class Atraccion {
         this.servicios = data.servicios;
         this.fotos = data.fotos || [];
         this.audioUrl = data.audioUrl || '';
+        // Nuevos campos soportados por el frontend
+        this.restriccionEdad = data.restriccionEdad || '';
+        this.permitirAlimentos = data.permitirAlimentos || '';
         this.estado = data.estado || 'activa'; // 'activa' o 'inactiva'
         this.fechaCreacion = data.fechaCreacion || new Date().toISOString();
         this.fechaActualizacion = data.fechaActualizacion || new Date().toISOString();
@@ -36,6 +39,9 @@ class Atraccion {
                 ...atraccionData,
                 fotos: atraccionData.fotos || [], // Asegurar que sea un array
                 audioUrl: atraccionData.audioUrl || '',
+                // Asegurar que los nuevos campos existan con valores por defecto
+                restriccionEdad: atraccionData.restriccionEdad || '',
+                permitirAlimentos: atraccionData.permitirAlimentos || '',
                 fechaCreacion: new Date(),
                 fechaActualizacion: new Date()
             };
