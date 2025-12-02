@@ -108,6 +108,190 @@ class EmailService {
             throw new Error("Error al enviar el correo de recuperación");
         }
     }
+
+    // Enviar email de confirmación de solicitud de eliminación
+    async sendDeletionRequestConfirmation(email, firstName) {
+        try {
+            const msg = {
+                to: email,
+                from: {
+                    email: process.env.SENDGRID_VERIFIED_EMAIL,
+                    name: 'Experience Arrays'
+                },
+                subject: 'Solicitud de eliminación de cuenta recibida - Experience Arrays',
+                html: `
+                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                        <h2 style="color: #e74c3c; text-align: center;">Solicitud de Eliminación Recibida</h2>
+                        <p>Hola ${firstName},</p>
+                        <p>Hemos recibido tu solicitud de eliminación de cuenta.</p>
+                        
+                        <div style="background-color: #fff3cd; padding: 15px; border-left: 4px solid #ffc107; margin: 20px 0;">
+                            <p style="margin: 0; color: #856404;">
+                                <strong>Importante:</strong> Tu solicitud será revisada por nuestro equipo en un plazo máximo de 30 días.
+                            </p>
+                        </div>
+
+                        <p>Recibirás un correo cuando tu solicitud sea procesada.</p>
+                        <p>Si deseas cancelar tu solicitud, puedes hacerlo desde la sección de eliminación de cuenta en la aplicación.</p>
+
+                        <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+                        <p style="color: #666; font-size: 12px; text-align: center;">
+                            Este es un correo automático, por favor no respondas a este mensaje.<br>
+                            Experience Arrays
+                        </p>
+                    </div>
+                `
+            };
+
+            const result = await sgMail.send(msg);
+            return { success: true, messageId: result[0].headers['x-message-id'] };
+        } catch (error) {
+            console.error('Error enviando confirmación de eliminación:', error);
+            throw new Error('Error al enviar el correo de confirmación');
+        }
+    }
+
+    // Enviar email de aprobación de solicitud
+    async sendDeletionRequestApproval(email, firstName) {
+        try {
+            const msg = {
+                to: email,
+                from: {
+                    email: process.env.SENDGRID_VERIFIED_EMAIL,
+                    name: 'Experience Arrays'
+                },
+                subject: 'Tu cuenta ha sido eliminada - Experience Arrays',
+                html: `
+                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                        <h2 style="color: #e74c3c; text-align: center;">Tu cuenta ha sido eliminada</h2>
+                        <p>Estimado/a ${firstName},</p>
+                        <p>Tu solicitud de eliminación de cuenta ha sido procesada y aprobada.</p>
+
+                        <h3 style="color: #333;">Datos eliminados:</h3>
+                        <ul style="line-height: 1.8;">
+                            <li>Información personal (nombre, correo, teléfono)</li>
+                            <li>Preferencias y configuraciones</li>
+                            <li>Historial de actividad</li>
+                            <li>Favoritos y listas guardadas</li>
+                        </ul>
+
+                        <h3 style="color: #333;">Datos conservados por requisitos legales:</h3>
+                        <ul style="line-height: 1.8;">
+                            <li>Registros de transacciones: 5 años</li>
+                            <li>Datos anonimizados para estadísticas</li>
+                            <li>Información legal requerida por ley</li>
+                        </ul>
+
+                        <div style="background-color: #f8f9fa; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                            <p style="margin: 0; color: #666;">
+                                Si crees que esto es un error o tienes alguna pregunta, por favor contacta nuestro soporte.
+                            </p>
+                        </div>
+
+                        <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+                        <p style="color: #666; font-size: 12px; text-align: center;">
+                            Atentamente,<br>
+                            Equipo de Experience Arrays
+                        </p>
+                    </div>
+                `
+            };
+
+            const result = await sgMail.send(msg);
+            return { success: true, messageId: result[0].headers['x-message-id'] };
+        } catch (error) {
+            console.error('Error enviando aprobación de eliminación:', error);
+            throw new Error('Error al enviar el correo de aprobación');
+        }
+    }
+
+    // Enviar email de rechazo de solicitud
+    async sendDeletionRequestRejection(email, firstName, reason) {
+        try {
+            const msg = {
+                to: email,
+                from: {
+                    email: process.env.SENDGRID_VERIFIED_EMAIL,
+                    name: 'Experience Arrays'
+                },
+                subject: 'Tu solicitud de eliminación ha sido rechazada - Experience Arrays',
+                html: `
+                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                        <h2 style="color: #ffc107; text-align: center;">Solicitud de Eliminación Rechazada</h2>
+                        <p>Estimado/a ${firstName},</p>
+                        <p>Lamentamos informarte que tu solicitud de eliminación de cuenta ha sido rechazada.</p>
+
+                        <div style="background-color: #f8d7da; padding: 15px; border-left: 4px solid #f5c6cb; margin: 20px 0;">
+                            <h3 style="margin-top: 0; color: #721c24;">Motivo del rechazo:</h3>
+                            <p style="margin-bottom: 0; color: #721c24;">${reason}</p>
+                        </div>
+
+                        <p>Tu cuenta permanece activa y puedes seguir utilizando nuestros servicios normalmente.</p>
+
+                        <h3 style="color: #333;">¿Tienes preguntas?</h3>
+                        <p>Si deseas discutir esta decisión, por favor contacta nuestro equipo de soporte:</p>
+                        <ul style="line-height: 1.8;">
+                            <li>Email: soporte@experiencearrays.com</li>
+                            <li>Horario: Lunes a Viernes, 9:00 AM - 6:00 PM</li>
+                        </ul>
+
+                        <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+                        <p style="color: #666; font-size: 12px; text-align: center;">
+                            Atentamente,<br>
+                            Equipo de Experience Arrays
+                        </p>
+                    </div>
+                `
+            };
+
+            const result = await sgMail.send(msg);
+            return { success: true, messageId: result[0].headers['x-message-id'] };
+        } catch (error) {
+            console.error('Error enviando rechazo de eliminación:', error);
+            throw new Error('Error al enviar el correo de rechazo');
+        }
+    }
+
+    // Enviar email de cancelación de solicitud
+    async sendDeletionRequestCancellation(email, firstName) {
+        try {
+            const msg = {
+                to: email,
+                from: {
+                    email: process.env.SENDGRID_VERIFIED_EMAIL,
+                    name: 'Experience Arrays'
+                },
+                subject: 'Solicitud de eliminación cancelada - Experience Arrays',
+                html: `
+                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                        <h2 style="color: #28a745; text-align: center;">Solicitud Cancelada</h2>
+                        <p>Hola ${firstName},</p>
+                        <p>Tu solicitud de eliminación de cuenta ha sido cancelada exitosamente.</p>
+
+                        <div style="background-color: #d4edda; padding: 15px; border-left: 4px solid #28a745; margin: 20px 0;">
+                            <p style="margin: 0; color: #155724;">
+                                Tu cuenta permanece activa y puedes seguir disfrutando de todos nuestros servicios.
+                            </p>
+                        </div>
+
+                        <p>Si tienes alguna pregunta o necesitas ayuda, no dudes en contactarnos.</p>
+
+                        <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+                        <p style="color: #666; font-size: 12px; text-align: center;">
+                            Este es un correo automático, por favor no respondas a este mensaje.<br>
+                            Experience Arrays
+                        </p>
+                    </div>
+                `
+            };
+
+            const result = await sgMail.send(msg);
+            return { success: true, messageId: result[0].headers['x-message-id'] };
+        } catch (error) {
+            console.error('Error enviando cancelación de eliminación:', error);
+            throw new Error('Error al enviar el correo de cancelación');
+        }
+    }
 }
 
 export default new EmailService();
