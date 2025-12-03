@@ -1,12 +1,19 @@
 // services/emailService.js
 import sgMail from '@sendgrid/mail';
 import crypto from 'crypto';
-import dotenv from 'dotenv';
+import { config } from '../config/env.js'; // ← Nueva importación
 
+/*import dotenv from 'dotenv';
 dotenv.config();
+ */
 
 // Configurar SendGrid
+/*
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+ */
+
+//DESPUÉS
+sgMail.setApiKey(config.sendgrid.apiKey);
 
 class EmailService {
     constructor() {
@@ -24,7 +31,7 @@ class EmailService {
             const msg = {
                 to: email,
                 from: {
-                    email: process.env.SENDGRID_VERIFIED_EMAIL, // Tu email verificado en SendGrid
+                    email: config.sendgrid.verifiedEmail, // ← Usar config
                     name: 'Experience Arrays' // Tu nombre de remitente
                 },
                 subject: 'Verifica tu cuenta - Experience Arrays',

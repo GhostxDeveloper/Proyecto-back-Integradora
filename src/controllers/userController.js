@@ -1,8 +1,11 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { config } from '../config/env.js'; // ← Nueva importación
+/*
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
+ */
 import { collection, doc, getDoc, updateDoc, deleteDoc, query, where, getDocs, addDoc } from "firebase/firestore";
 import { db } from '../config/firebase.js';
 import { UserModel } from '../models/User.js';
@@ -10,14 +13,24 @@ import emailService from '../services/emailService.js';
 import verificationStore from '../services/verificationStore.js';
 import crypto from 'crypto';
 
+/*
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+ */
 
+/*
 // Cargar .env desde la raíz del proyecto
 dotenv.config({ path: path.join(__dirname, '../../.env') });
+ */
 
 const saltRounds = 10;
+/*
+ANTES
 const secretKey = process.env.JWT_SECRET || 'tu_jwt_secret_super_seguro_cambiar_en_produccion';
+ */
+
+// DESPUÉS:
+const secretKey = config.jwt.secret;
 
 // Funciones temporales para generar códigos
 const generateVerificationCode = () => {
@@ -422,7 +435,7 @@ export class UserController {
                 id: user.id,
                 email: user.email,
                 role: user.role
-            }, secretKey, { expiresIn: '24h' });
+            }, secretKey, { expiresIn: config.jwt.expiresIn });
 
             res.status(200).json({
                 success: true,

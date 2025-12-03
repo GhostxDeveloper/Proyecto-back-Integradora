@@ -2,6 +2,7 @@ import server from './server.js';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { config } from './config/env.js'; // ← Nueva importación
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -19,7 +20,8 @@ server.get('/api/health', (req, res) => {
         success: true,
         message: 'Servidor funcionando correctamente',
         timestamp: new Date().toISOString(),
-        version: '1.0.0'
+        version: '1.0.0',
+        environment: config.env //usando config en lugar de process.env
     });
 });
 
@@ -29,14 +31,14 @@ server.use((error, req, res, next) => {
     res.status(500).json({
         success: false,
         message: 'Error interno del servidor',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        error: config.isDevelopment ? error.message : undefined // ← Usar config
     });
 });
 
 const PORT = process.env.PORT || 3000
 
 server.listen(PORT, () => {
-    console.log(`🚀 Servidor corriendo en puerto ${PORT}`);
-    console.log(`🌐 URL: http://localhost:${PORT}`);
-    console.log(`💚 Health check: http://localhost:${PORT}/api/health`);
+    console.log(`🚀 Servidor corriendo en puerto ${config.port}`);
+    console.log(`🌐 URL: http://localhost:${config.port}`);
+    console.log(`💚 Health check: http://localhost:${config.port}/api/health`);
 });
