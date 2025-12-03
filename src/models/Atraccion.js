@@ -1,5 +1,6 @@
 import { db } from '../config/firebase.js';
 import { NotFoundError, InternalError } from '../utils/AppError.js'; // ← Nuevo
+import logger from '../config/logger.js'; // ← Nuevo
 
 class Atraccion {
     constructor(data) {
@@ -29,8 +30,8 @@ class Atraccion {
     // Crear una nueva atracción
     static async create(atraccionData) {
         try {
-            console.log('=== CREANDO ATRACCIÓN EN FIRESTORE ===');
-            console.log('Datos recibidos:', {
+            logger.debug('=== CREANDO ATRACCIÓN EN FIRESTORE ===');
+            logger.debug('Datos recibidos:', {
                 nombre: atraccionData.nombre,
                 cantidadFotos: atraccionData.fotos?.length || 0,
                 tieneAudio: !!atraccionData.audioUrl
@@ -47,26 +48,26 @@ class Atraccion {
                 fechaActualizacion: new Date()
             };
 
-            console.log('Atracción preparada para guardar:', {
+            logger.info('Atracción preparada para guardar:', {
                 ...newAtraccion,
                 fotos: `Array con ${newAtraccion.fotos.length} elementos`,
                 audioUrl: newAtraccion.audioUrl ? 'Presente' : 'Ausente'
             });
 
             const docRef = await db.collection('atracciones').add(newAtraccion);
-            console.log('Atracción guardada con ID:', docRef.id);
+            logger.info('Atracción guardada con ID:', docRef.id);
 
             const snapshot = await docRef.get();
             const savedData = { id: docRef.id, ...snapshot.data() };
-            
-            console.log('Datos guardados verificados:', {
+
+            logger.info('Datos guardados verificados:', {
                 id: savedData.id,
                 cantidadFotos: savedData.fotos?.length || 0
             });
 
             return savedData;
         } catch (error) {
-            console.error('Error en create:', error);
+            logger.error('Error en create:', error);
             throw new Error('Error al crear la atracción: ' + error.message);
         }
     }

@@ -1,6 +1,7 @@
 // src/middleware/errorHandler.js
 import { config } from '../config/env.js';
 import { AppError } from '../utils/AppError.js';
+import logger from '../config/logger.js'; // ← Nuevo
 
 /**
  * Middleware centralizado para manejo de errores
@@ -14,18 +15,19 @@ export const errorHandler = (err, req, res, next) => {
 
     // LOG del error (más tarde reemplazaremos con Winston)
     if (err.statusCode >= 500) {
-        console.error('❌ Error del servidor:', {
-            message: err.message,
-            stack: err.stack,
+        logger.logError(err, {
             url: req.originalUrl,
             method: req.method,
             body: req.body,
             userId: req.user?.id,
-            timestamp: new Date().toISOString()
+            ip: req.ip
         });
     } else if (config.isDevelopment) {
         // En desarrollo, logear todos los errores
-        console.log(`⚠️  Error ${err.statusCode}:`, err.message);
+        logger.warn(`Error ${err.statusCode}: ${err.message}`, {
+            url: req.originalUrl,
+            method: req.method
+        });
     }
 
     // Construir respuesta base

@@ -4,6 +4,8 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { config } from './config/env.js'; // ← Nueva importación
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js'; // ← Nuevo
+import logger from './config/logger.js'; // ← Nuevo
+import morgan from 'morgan'; // ← Nuevo
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -11,10 +13,23 @@ const __dirname = path.dirname(__filename);
 // Cargar .env desde la raíz del proyecto
 dotenv.config({ path: path.join(__dirname, '../.env') });
 
+/*
+ANTES (fix-03)
 server.use((req, res, next) => {
     console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
     next();
 });
+ */
+
+// AGREGAR:
+// Configurar Morgan para usar Winston
+if (config.isDevelopment) {
+    // Formato detallado en desarrollo
+    server.use(morgan('dev'));
+} else {
+    // Formato compacto en producción, enviado a Winston
+    server.use(morgan('combined', { stream: logger.stream }));
+}
 
 server.get('/api/health', (req, res) => {
     res.json({
@@ -45,8 +60,14 @@ server.use(errorHandler);
 
 //const PORT = process.env.PORT || 3000
 
-server.listen(PORT, () => {
-    console.log(`🚀 Servidor corriendo en puerto ${config.port}`);
-    console.log(`🌐 URL: http://localhost:${config.port}`);
-    console.log(`💚 Health check: http://localhost:${config.port}/api/health`);
+server.listen(config.port, () => {
+    // REEMPLAZAR console.log con logger
+    logger.logServerStart(config.port);
+
+    // Mantener mensajes visuales para desarrollo
+    if (config.isDevelopment) {
+        console.log(`🚀 Servidor corriendo en puerto ${config.port}`);
+        console.log(`🌐 URL: http://localhost:${config.port}`);
+        console.log(`💚 Health check: http://localhost:${config.port}/api/health`);
+    }
 });

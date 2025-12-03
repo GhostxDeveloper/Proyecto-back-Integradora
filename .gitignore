@@ -1,4 +1,10 @@
+#.gitignore
 /node_modules
 .env
 .env.local
 .env.production
+
+# Logs
+logs/
+*.log
+npm-debug.log*
