@@ -170,6 +170,7 @@ export const actualizarAtraccion = asyncHandler(async (req, res) => {
     });
 });
 
+/*
 // Eliminar una atracción
 export const eliminarAtraccion = async (req, res) => {
     try {
@@ -189,6 +190,78 @@ export const eliminarAtraccion = async (req, res) => {
         });
     }
 };
+ */
+
+// MODIFICAR: eliminar para incluir userId
+export const eliminarAtraccion = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const deletedBy = req.user?.id; // ID del admin que elimina
+
+    const resultado = await Atraccion.delete(id, deletedBy);
+
+    res.json({
+        success: true,
+        message: resultado.message,
+        recoverable: resultado.recoverable,
+        deletedAt: resultado.deletedAt
+    });
+});
+
+// NUEVO: Restaurar atracción eliminada
+export const restaurarAtraccion = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const restoredBy = req.user?.id;
+
+    const resultado = await Atraccion.restore(id, restoredBy);
+
+    res.json({
+        success: true,
+        message: resultado.message,
+        data: resultado.data
+    });
+});
+
+// NUEVO: Listar atracciones eliminadas (papelera)
+export const obtenerAtraccionesEliminadas = asyncHandler(async (req, res) => {
+    const eliminadas = await Atraccion.getDeleted();
+
+    res.json({
+        success: true,
+        count: eliminadas.length,
+        data: eliminadas
+    });
+});
+
+// NUEVO: Eliminación permanente (requiere confirmación)
+export const eliminarPermanentemente = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const { confirmacion } = req.body;
+    const adminId = req.user?.id;
+
+    // Requiere confirmación explícita
+    if (confirmacion !== 'ELIMINAR_PERMANENTEMENTE') {
+        return res.status(400).json({
+            success: false,
+            message: 'Debes confirmar la eliminación permanente enviando: { "confirmacion": "ELIMINAR_PERMANENTEMENTE" }',
+            warning: 'Esta acción NO se puede deshacer'
+        });
+    }
+
+    const resultado = await Atraccion.hardDelete(id, adminId);
+
+    logger.warn('Eliminación permanente ejecutada', {
+        atraccionId: id,
+        adminId,
+        timestamp: new Date().toISOString()
+    });
+
+    res.json({
+        success: true,
+        message: resultado.message,
+        recoverable: false,
+        warning: 'Esta atracción ha sido eliminada permanentemente y no se puede recuperar'
+    });
+});
 
 // Cambiar estado de la atracción (activa/inactiva)
 export const cambiarEstadoAtraccion = async (req, res) => {
