@@ -1,6 +1,7 @@
 import Atraccion from '../models/Atraccion.js';
 import { NotFoundError, ValidationError } from '../utils/AppError.js'; // ← Nuevo
 import { asyncHandler } from '../middleware/errorHandler.js'; // ← Nuevo
+import logger from '../config/logger.js'; // ← Nuevo
 
 // Crear una nueva atracción
 /*
@@ -51,7 +52,19 @@ export const crearAtraccion = asyncHandler(async (req, res) => {
         );
     }
 
+    logger.info('Creando nueva atracción', {
+        nombre: atraccionData.nombre,
+        categoria: atraccionData.categoria,
+        userId: req.user?.id
+    });
+
     const nuevaAtraccion = await Atraccion.create(atraccionData);
+
+    //Usando morgan + winston
+    logger.logSuccess('Atracción creada', {
+        atraccionId: nuevaAtraccion.id,
+        nombre: nuevaAtraccion.nombre
+    });
 
     res.status(201).json({
         success: true,
