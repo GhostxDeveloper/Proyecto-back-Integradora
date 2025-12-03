@@ -1,6 +1,10 @@
 import Atraccion from '../models/Atraccion.js';
+import { NotFoundError, ValidationError } from '../utils/AppError.js'; // ← Nuevo
+import { asyncHandler } from '../middleware/errorHandler.js'; // ← Nuevo
 
 // Crear una nueva atracción
+/*
+ANTES
 export const crearAtraccion = async (req, res) => {
     try {
         const atraccionData = req.body;
@@ -31,6 +35,30 @@ export const crearAtraccion = async (req, res) => {
         });
     }
 };
+ */
+
+// DESPUÉS:
+export const crearAtraccion = asyncHandler(async (req, res) => {
+    const atraccionData = req.body;
+
+    // Validar campos requeridos
+    const camposRequeridos = ['nombre', 'descripcion', 'latitud', 'longitud'];
+    const camposFaltantes = camposRequeridos.filter(campo => !atraccionData[campo]);
+
+    if (camposFaltantes.length > 0) {
+        throw new ValidationError(
+            `Campos requeridos faltantes: ${camposFaltantes.join(', ')}`
+        );
+    }
+
+    const nuevaAtraccion = await Atraccion.create(atraccionData);
+
+    res.status(201).json({
+        success: true,
+        message: 'Atracción creada exitosamente',
+        data: nuevaAtraccion
+    });
+});
 
 // Obtener todas las atracciones con filtros opcionales
 export const obtenerAtracciones = async (req, res) => {
@@ -54,6 +82,7 @@ export const obtenerAtracciones = async (req, res) => {
     }
 };
 
+/*
 // Obtener una atracción por ID
 export const obtenerAtraccionPorId = async (req, res) => {
     try {
@@ -73,7 +102,24 @@ export const obtenerAtraccionPorId = async (req, res) => {
         });
     }
 };
+ */
 
+// Obtener por ID
+export const obtenerAtraccionPorId = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const atraccion = await Atraccion.getById(id);
+
+    if (!atraccion) {
+        throw new NotFoundError('Atracción');
+    }
+
+    res.json({
+        success: true,
+        data: atraccion
+    });
+});
+
+/*
 // Actualizar una atracción
 export const actualizarAtraccion = async (req, res) => {
     try {
@@ -96,6 +142,20 @@ export const actualizarAtraccion = async (req, res) => {
         });
     }
 };
+ */
+// Actualizar atracción
+export const actualizarAtraccion = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const updateData = req.body;
+
+    const atraccionActualizada = await Atraccion.update(id, updateData);
+
+    res.json({
+        success: true,
+        message: 'Atracción actualizada exitosamente',
+        data: atraccionActualizada
+    });
+});
 
 // Eliminar una atracción
 export const eliminarAtraccion = async (req, res) => {

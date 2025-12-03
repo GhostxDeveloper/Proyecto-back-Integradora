@@ -1,8 +1,9 @@
 import server from './server.js';
-import dotenv from 'dotenv';
+//import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { config } from './config/env.js'; // ← Nueva importación
+import { errorHandler, notFoundHandler } from './middleware/errorHandler.js'; // ← Nuevo
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -25,7 +26,10 @@ server.get('/api/health', (req, res) => {
     });
 });
 
+// NUEVO: Capturar rutas no encontradas (debe ir DESPUÉS de todas las rutas)
+server.use(notFoundHandler);
 
+/*
 server.use((error, req, res, next) => {
     console.error('Error:', error);
     res.status(500).json({
@@ -34,8 +38,12 @@ server.use((error, req, res, next) => {
         error: config.isDevelopment ? error.message : undefined // ← Usar config
     });
 });
+ */
 
-const PORT = process.env.PORT || 3000
+// NUEVO: Middleware global de manejo de errores
+server.use(errorHandler);
+
+//const PORT = process.env.PORT || 3000
 
 server.listen(PORT, () => {
     console.log(`🚀 Servidor corriendo en puerto ${config.port}`);

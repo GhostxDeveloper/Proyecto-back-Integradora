@@ -1,4 +1,5 @@
 import { db } from '../config/firebase.js';
+import { NotFoundError, InternalError } from '../utils/AppError.js'; // ← Nuevo
 
 class Atraccion {
     constructor(data) {
@@ -113,6 +114,7 @@ class Atraccion {
         }
     }
 
+    /*
     // Obtener una atracción por ID
     static async getById(id) {
         try {
@@ -130,7 +132,31 @@ class Atraccion {
             throw new Error(`Error al obtener atracción: ${error.message}`);
         }
     }
+     */
 
+    static async getById(id) {
+        try {
+            const doc = await db.collection('atracciones').doc(id).get();
+
+            if (!doc.exists) {
+                throw new NotFoundError('Atracción'); // ← Usa clase específica
+            }
+
+            return {
+                id: doc.id,
+                ...doc.data()
+            };
+        } catch (error) {
+            // Si ya es un AppError, re-lanzarlo
+            if (error.isOperational) {
+                throw error;
+            }
+            // Si es otro tipo de error (Firebase caído, etc), envolver
+            throw new InternalError(`Error al obtener atracción: ${error.message}`);
+        }
+    }
+
+    /*
     // Actualizar una atracción
     static async update(id, updateData) {
         try {
@@ -155,6 +181,36 @@ class Atraccion {
             };
         } catch (error) {
             throw new Error(`Error al actualizar atracción: ${error.message}`);
+        }
+    }
+     */
+
+    static async update(id, updateData) {
+        try {
+            const docRef = db.collection('atracciones').doc(id);
+            const doc = await docRef.get();
+
+            if (!doc.exists) {
+                throw new NotFoundError('Atracción');
+            }
+
+            const updatedData = {
+                ...updateData,
+                fechaActualizacion: new Date().toISOString()
+            };
+
+            await docRef.update(updatedData);
+
+            return {
+                id,
+                ...doc.data(),
+                ...updatedData
+            };
+        } catch (error) {
+            if (error.isOperational) {
+                throw error;
+            }
+            throw new InternalError(`Error al actualizar atracción: ${error.message}`);
         }
     }
 
