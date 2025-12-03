@@ -7,8 +7,26 @@ import {
     eliminarAtraccion,
     cambiarEstadoAtraccion,
     buscarAtracciones,
-    obtenerEstadisticas
+    obtenerEstadisticas,
+    restaurarAtraccion,              // ← NUEVO
+    obtenerAtraccionesEliminadas,    // ← NUEVO
+    eliminarPermanentemente           // ← NUEVO
 } from '../controllers/atraccionCtl.js';
+
+import { validateBody, validateQuery } from '../middleware/validate.js';
+import {
+    crearAtraccionSchema,
+    actualizarAtraccionSchema,
+    cambiarEstadoSchema,
+    buscarAtraccionesQuerySchema,
+    filtrosAtraccionesSchema
+} from '../validators/atraccionSchema.js';
+import {
+    createResourceLimiter,
+    searchLimiter,
+    adminLimiter
+} from '../middleware/rateLimiter.js';
+import { UserController } from '../controllers/userController.js'; // ← NUEVO
 
 const router = express.Router();
 
@@ -35,7 +53,66 @@ router.put('/:id', actualizarAtraccion);
 // PATCH /api/atracciones/:id/estado - Cambiar estado de la atracción
 router.patch('/:id/estado', cambiarEstadoAtraccion);
 
+// NUEVO: Papelera - Ver atracciones eliminadas
+router.get('/admin/deleted',
+    UserController.authenticateToken,
+    UserController.authorizeAdmin,
+    adminLimiter,
+    obtenerAtraccionesEliminadas
+);
+
 // DELETE /api/atracciones/:id - Eliminar una atracción
 router.delete('/:id', eliminarAtraccion);
+
+// Crear
+router.post('/',
+    UserController.authenticateToken,
+    UserController.authorizeAdmin,
+    createResourceLimiter,
+    validateBody(crearAtraccionSchema),
+    crearAtraccion
+);
+
+// Actualizar
+router.put('/:id',
+    UserController.authenticateToken,
+    UserController.authorizeAdmin,
+    adminLimiter,
+    validateBody(actualizarAtraccionSchema),
+    actualizarAtraccion
+);
+
+// Cambiar estado
+router.patch('/:id/estado',
+    UserController.authenticateToken,
+    UserController.authorizeAdmin,
+    adminLimiter,
+    validateBody(cambiarEstadoSchema),
+    cambiarEstadoAtraccion
+);
+
+// Eliminar (soft delete)
+router.delete('/:id',
+    UserController.authenticateToken,
+    UserController.authorizeAdmin,
+    adminLimiter,
+    eliminarAtraccion
+);
+
+// NUEVO: Restaurar atracción eliminada
+router.post('/:id/restore',
+    UserController.authenticateToken,
+    UserController.authorizeAdmin,
+    adminLimiter,
+    restaurarAtraccion
+);
+
+// NUEVO: Eliminación permanente (requiere confirmación)
+router.delete('/:id/permanent',
+    UserController.authenticateToken,
+    UserController.authorizeAdmin,
+    adminLimiter,
+    eliminarPermanentemente
+);
 
 export default router;

@@ -25,6 +25,9 @@ class Atraccion {
         this.estado = data.estado || 'activa'; // 'activa' o 'inactiva'
         this.fechaCreacion = data.fechaCreacion || new Date().toISOString();
         this.fechaActualizacion = data.fechaActualizacion || new Date().toISOString();
+        // NUEVO: Campo para soft delete
+        this.deletedAt = data.deletedAt || null;
+        this.deletedBy = data.deletedBy || null;
     }
 
     // Crear una nueva atracción
@@ -215,6 +218,7 @@ class Atraccion {
         }
     }
 
+    /*
     // Eliminar una atracción
     static async delete(id) {
         try {
@@ -229,6 +233,156 @@ class Atraccion {
             return { message: 'Atracción eliminada correctamente' };
         } catch (error) {
             throw new Error(`Error al eliminar atracción: ${error.message}`);
+        }
+    }
+     */
+
+    // REEMPLAZAR: delete por soft delete
+    static async delete(id, deletedBy = null) {
+        try {
+            const docRef = db.collection('atracciones').doc(id);
+            const doc = await docRef.get();
+
+            if (!doc.exists) {
+                throw new NotFoundError('Atracción');
+            }
+
+            const data = doc.data();
+
+            // Verificar si ya está eliminada
+            if (data.deletedAt) {
+                throw new Error('La atracción ya fue eliminada previamente');
+            }
+
+            // SOFT DELETE: marcar como eliminada
+            const deletedAt = new Date().toISOString();
+            await docRef.update({
+                deletedAt,
+                deletedBy, // ID del admin que eliminó
+                estado: 'eliminada',
+                fechaActualizacion: deletedAt
+            });
+
+            logger.info('Atracción eliminada (soft delete)', {
+                atraccionId: id,
+                nombre: data.nombre,
+                deletedBy,
+                deletedAt
+            });
+
+            return {
+                message: 'Atracción eliminada correctamente',
+                recoverable: true,
+                deletedAt
+            };
+        } catch (error) {
+            if (error.isOperational) {
+                throw error;
+            }
+            logger.error('Error eliminando atracción', { id, error: error.message });
+            throw new InternalError(`Error al eliminar atracción: ${error.message}`);
+        }
+    }
+
+    // NUEVO: Restaurar atracción eliminada
+    static async restore(id, restoredBy = null) {
+        try {
+            const docRef = db.collection('atracciones').doc(id);
+            const doc = await docRef.get();
+
+            if (!doc.exists) {
+                throw new NotFoundError('Atracción');
+            }
+
+            const data = doc.data();
+
+            // Verificar que esté eliminada
+            if (!data.deletedAt) {
+                throw new Error('La atracción no está eliminada');
+            }
+
+            // Restaurar
+            await docRef.update({
+                deletedAt: null,
+                deletedBy: null,
+                estado: 'activa',
+                fechaActualizacion: new Date().toISOString(),
+                restoredAt: new Date().toISOString(),
+                restoredBy
+            });
+
+            logger.info('Atracción restaurada', {
+                atraccionId: id,
+                nombre: data.nombre,
+                restoredBy
+            });
+
+            return {
+                message: 'Atracción restaurada correctamente',
+                data: { id, ...data, deletedAt: null, estado: 'activa' }
+            };
+        } catch (error) {
+            if (error.isOperational) {
+                throw error;
+            }
+            throw new InternalError(`Error al restaurar atracción: ${error.message}`);
+        }
+    }
+
+    // NUEVO: Obtener atracciones eliminadas (solo admin)
+    static async getDeleted() {
+        try {
+            const snapshot = await db.collection('atracciones').get();
+
+            const deleted = snapshot.docs
+                .map(doc => ({ id: doc.id, ...doc.data() }))
+                .filter(item => item.deletedAt) // Solo eliminadas
+                .sort((a, b) => new Date(b.deletedAt) - new Date(a.deletedAt)); // Más recientes primero
+
+            logger.debug('Atracciones eliminadas recuperadas', { count: deleted.length });
+
+            return deleted;
+        } catch (error) {
+            throw new InternalError('Error al obtener atracciones eliminadas: ' + error.message);
+        }
+    }
+
+    // NUEVO: Eliminación permanente (solo admin, usar con precaución)
+    static async hardDelete(id, adminId) {
+        try {
+            const docRef = db.collection('atracciones').doc(id);
+            const doc = await docRef.get();
+
+            if (!doc.exists) {
+                throw new NotFoundError('Atracción');
+            }
+
+            const data = doc.data();
+
+            // Verificar que esté eliminada primero (soft delete)
+            if (!data.deletedAt) {
+                throw new Error('La atracción debe estar eliminada antes de borrarla permanentemente');
+            }
+
+            // HARD DELETE: eliminar permanentemente
+            await docRef.delete();
+
+            logger.warn('Atracción eliminada PERMANENTEMENTE', {
+                atraccionId: id,
+                nombre: data.nombre,
+                adminId,
+                warning: 'Esta acción no se puede deshacer'
+            });
+
+            return {
+                message: 'Atracción eliminada permanentemente',
+                recoverable: false
+            };
+        } catch (error) {
+            if (error.isOperational) {
+                throw error;
+            }
+            throw new InternalError(`Error al eliminar permanentemente: ${error.message}`);
         }
     }
 
